@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Free Property CGT Calculator (AU) - YSE Finance</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:16px;line-height:1.35;background:#fff}
+    .wrap{max-width:860px;margin:0 auto}
+    h1{font-size:22px;margin:0 0 6px}
+    .sub{color:#555;margin:0 0 14px}
+    .card{border:1px solid #e5e5e5;border-radius:14px;padding:16px;margin:12px 0}
+    label{display:block;font-size:13px;margin:10px 0 6px;color:#333}
+    input{width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:10px;font-size:14px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #d9d9d9;background:#fff;cursor:pointer}
+    button.primary{border-color:#111;background:#111;color:#fff}
+    .result{font-size:15px;margin:6px 0}
+    .big{font-size:22px;font-weight:700;margin:4px 0 10px}
+    .muted{color:#666;font-size:12px}
+    ul{margin:8px 0 0 18px}
+    .badge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:999px;background:#f3f3f3;margin-left:8px}
+    .hr{height:1px;background:#eee;margin:12px 0}
+    @media (max-width:700px){ .row{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="card">
+      <h1>Free Property CGT Calculator (Australia)</h1>
+      <div class="sub">Designed for individuals preparing their own annual tax return.</div>
+
+      <div class="row">
+        <div>
+          <label>Purchase price (AUD)</label>
+          <input id="purchasePrice" type="number" min="0" step="0.01" placeholder="e.g. 650000" />
+        </div>
+        <div>
+          <label>Sale price (AUD)</label>
+          <input id="salePrice" type="number" min="0" step="0.01" placeholder="e.g. 820000" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Purchase date</label>
+          <input id="purchaseDate" type="date" />
+        </div>
+        <div>
+          <label>Sale date</label>
+          <input id="saleDate" type="date" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Ownership %</label>
+          <input id="ownership" type="number" min="0" max="100" step="0.01" value="100" />
+          <div class="muted">Enter your share only (e.g. 50 if joint owners).</div>
+        </div>
+        <div>
+          <label>Discount rate (individuals/trusts only)</label>
+          <input id="discountRate" type="number" min="0" max="100" step="0.01" value="50" />
+          <div class="muted">Applied only if held for 12+ months (companies typically not eligible).</div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="calcBtn">Calculate</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="card" id="outputCard" style="display:none">
+      <div class="result">
+        Holding period: <b id="holdingText"></b>
+        <span class="badge" id="discountBadge"></span>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="result">Your share of capital gain (before discount):</div>
+      <div class="big" id="gainBefore"></div>
+
+      <div class="result">Indicative discounted capital gain:</div>
+      <div class="big" id="gainAfter"></div>
+
+      <div class="muted" style="margin-top:10px">
+        <b>How to interpret the result</b><br/>
+        This calculator provides an indicative capital gain only. It does not assess:
+        <ul>
+          <li>Main residence exemptions</li>
+          <li>Cost base adjustments (stamp duty, legal fees, selling costs, improvements)</li>
+          <li>Capital works deductions</li>
+          <li>Prior year capital losses</li>
+          <li>Tax payable or marginal tax rates</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <b>Disclaimer</b>
+      <div class="muted" style="margin-top:6px">
+        This calculator provides general information only and does not constitute tax advice. Results are indicative and
+        based solely on the information entered by the user. Consider your individual circumstances and seek professional
+        advice where appropriate.
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function fmtAUD(n){
+      if (!isFinite(n)) return "—";
+      return n.toLocaleString("en-AU", { style:"currency", currency:"AUD", maximumFractionDigits:0 });
+    }
+
+    function daysBetween(d1, d2){
+      const ms = d2.getTime() - d1.getTime();
+      return Math.floor(ms / (1000*60*60*24));
+    }
+
+    $("calcBtn").addEventListener("click", () => {
+      const purchasePrice = parseFloat($("purchasePrice").value || "0");
+      const salePrice = parseFloat($("salePrice").value || "0");
+      const ownershipPct = parseFloat($("ownership").value || "0");
+      const discountRate = parseFloat($("discountRate").value || "0");
+
+      const pd = $("purchaseDate").value ? new Date($("purchaseDate").value) : null;
+      const sd = $("saleDate").value ? new Date($("saleDate").value) : null;
+
+      if (!purchasePrice || !salePrice || !pd || !sd) {
+        alert("Please enter purchase price, sale price, purchase date and sale date.");
+        return;
+      }
+      if (sd <= pd) {
+        alert("Sale date must be after purchase date.");
+        return;
+      }
+      if (ownershipPct < 0 || ownershipPct > 100) {
+        alert("Ownership % must be between 0 and 100.");
+        return;
+      }
+
+      const grossGain = salePrice - purchasePrice;
+      const yourShareGain = grossGain * (ownershipPct / 100);
+
+      const heldDays = daysBetween(pd, sd);
+      const heldMonthsApprox = Math.round(heldDays / 30.4375);
+
+      // Level 0 simple rule: 12+ months -> discount eligible
+      const eligibleDiscount = heldDays >= 365;
+
+      const appliedDiscount = eligibleDiscount ? (discountRate/100) : 0;
+      const discountedGain = yourShareGain * (1 - appliedDiscount);
+
+      $("holdingText").textContent = `${heldDays.toLocaleString()} days (~${heldMonthsApprox} months)`;
+      $("discountBadge").textContent = eligibleDiscount
+        ? `CGT discount applied (${discountRate}%)`
+        : "No CGT discount (held < 12 months)";
+
+      $("gainBefore").textContent = fmtAUD(yourShareGain);
+      $("gainAfter").textContent = fmtAUD(discountedGain);
+
+      $("outputCard").style.display = "block";
+      $("outputCard").scrollIntoView({behavior:"smooth", block:"start"});
+    });
+
+    $("resetBtn").addEventListener("click", () => {
+      ["purchasePrice","salePrice","purchaseDate","saleDate"].forEach(id => $(id).value = "");
+      $("ownership").value = "100";
+      $("discountRate").value = "50";
+      $("outputCard").style.display = "none";
+    });
+  </script>
+</body>
+</html>
